@@ -1,8 +1,9 @@
 import axios from 'axios';
 
-// Configurar axios
+// client/src/services/api.js
 const api = axios.create({
-  baseURL: process.env.REACT_APP_API_URL || '/api',
+  // Altere esta linha para:
+  baseURL: process.env.REACT_APP_API_URL || 'http://localhost:8080', // Ou apenas 'http://localhost:8080' se não usar REACT_APP_API_URL
   timeout: 10000,
 });
 
@@ -27,7 +28,7 @@ api.interceptors.response.use(
     const originalRequest = error.config;
 
     // Se o token expirou e não é uma tentativa de renovação
-    if (error.response?.status === 401 && !originalRequest._retry) {
+    if (error.response?.status === 401 && !originalRequest._retry && originalRequest.url !== '/auth/refresh') {
       originalRequest._retry = true;
 
       try {

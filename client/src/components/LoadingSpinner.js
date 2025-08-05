@@ -1,6 +1,5 @@
 import React from 'react';
 
-
 const LoadingSpinner = ({ size = 'md', className = '' }) => {
   const sizeClasses = {
     sm: 'h-4 w-4',

@@ -82,7 +82,7 @@ const seedData = async () => {
         technicalStandard: 'ABNT NBR 8221',
         manufacturer: '3M do Brasil',
         caNumber: 'CA12345',
-        caExpiryDate: new Date('2025-12-31'),
+        caExpiryDate: new Date('2026-06-30'), 
         lifespanMonths: 60,
         inspectionCriteria: [
           {
@@ -111,7 +111,7 @@ const seedData = async () => {
         technicalStandard: 'ABNT NBR 16001',
         manufacturer: 'Honeywell',
         caNumber: 'CA67890',
-        caExpiryDate: new Date('2025-06-30'),
+        caExpiryDate: new Date('2026-06-30'),
         lifespanMonths: 24,
         inspectionCriteria: [
           {
@@ -140,7 +140,7 @@ const seedData = async () => {
         technicalStandard: 'ABNT NBR 16577',
         manufacturer: 'Ansell',
         caNumber: 'CA11111',
-        caExpiryDate: new Date('2025-12-31'),
+        caExpiryDate: new Date('2026-12-31'),
         lifespanMonths: 12,
         inspectionCriteria: [
           {

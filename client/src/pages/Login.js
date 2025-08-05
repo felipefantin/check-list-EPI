@@ -1,179 +1,183 @@
-import React, { useState } from 'react';
+import React, { useState, useContext } from 'react';
 import { useForm } from 'react-hook-form';
-import { Eye, EyeOff, Mail, User, Lock, Shield } from 'lucide-react';
-import { useAuth } from '../contexts/AuthContext';
-import { LoadingSpinner } from '../components/LoadingSpinner';
-import { cn } from '../utils/cn';
+import { useNavigate } from 'react-router-dom';
+import { AuthContext } from '../contexts/AuthContext.js'; // Alterado aqui
+import LoadingSpinner from '../components/LoadingSpinner.js'; // Alterado aqui
+import { Mail, User, Lock, Shield } from 'lucide-react';
 
 const Login = () => {
-  const [showPassword, setShowPassword] = useState(false);
-  const [loginType, setLoginType] = useState('email'); // 'email' or 'employee'
-  const { login, loginEmployee, loading } = useAuth();
-  
-  const { register, handleSubmit, formState: { errors } } = useForm();
+  const [loading, setLoading] = useState(false);
+  // Mantemos o estado da aba ativa para controlar qual formulário é exibido
+  const [activeTab, setActiveTab] = useState('email'); // 'email' ou 'employeeId'
+  // Removemos o estado 'error' aqui, pois o AuthContext já lida com as mensagens de erro via toast.
+  // const [error, setError] = useState(null); 
+  const navigate = useNavigate();
+  // Importamos as funções de login do AuthContext
+  const { login, loginEmployee } = useContext(AuthContext);
 
+  const {
+    register,
+    handleSubmit,
+    formState: { errors },
+    // Adicionamos 'reset' para limpar o formulário após a troca de abas ou submissão
+    reset, 
+  } = useForm();
+
+  // Função onSubmit corrigida e melhorada
   const onSubmit = async (data) => {
+    // Não precisamos mais limpar o erro aqui se o AuthContext gerencia o toast
+    // setError(null); 
+    setLoading(true);
+    let result; // Variável para armazenar o resultado do login
+
     try {
-      if (loginType === 'email') {
-        await login(data.email, data.password);
+      if (activeTab === 'email') {
+        // Chamamos a função de login por e-mail
+        result = await login({ email: data.email, password: data.password });
       } else {
-        await loginEmployee(data.employeeId, data.password);
+        // Chamamos a função de login por matrícula
+        result = await loginEmployee({ employeeId: data.employeeId, password: data.password });
       }
-    } catch (error) {
-      console.error('Erro no login:', error);
+
+      // Verificamos o resultado da operação de login
+      if (result.success) {
+        navigate('/dashboard'); // Redireciona apenas se o login foi bem-sucedido
+      } else {
+        // Se o login falhou, o AuthContext já exibiu um toast de erro.
+        // Podemos, opcionalmente, logar o erro para depuração.
+        console.error('Falha no login:', result.error);
+        // Se você ABSOLUTAMENTE precisar de uma mensagem de erro específica no componente,
+        // poderia reativar o setError(result.error) aqui, mas o toast já faz o trabalho.
+      }
+    } catch (err) {
+      // Este catch só será acionado se houver um erro inesperado que não foi tratado
+      // pelo AuthContext (ex: problema de rede antes da requisição ser enviada).
+      // O AuthContext já tem um tratamento de erro robusto, então este catch é mais um fallback.
+      console.error('Erro inesperado no login:', err);
+      // Se quiser exibir um toast genérico para erros inesperados aqui:
+      // toast.error('Ocorreu um erro inesperado. Tente novamente.');
+    } finally {
+      setLoading(false); // Sempre desativa o spinner de carregamento
     }
   };
 
+  // Função para lidar com a troca de abas
+  const handleTabChange = (tab) => {
+    setActiveTab(tab);
+    reset(); // Limpa os campos do formulário ao trocar de aba para evitar dados de uma aba na outra
+  };
+
+
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gray-50 py-12 px-4 sm:px-6 lg:px-8">
-      <div className="max-w-md w-full space-y-8">
-        <div>
-          <div className="mx-auto h-12 w-12 bg-primary-600 rounded-lg flex items-center justify-center">
-            <Shield className="h-8 w-8 text-white" />
-          </div>
-          <h2 className="mt-6 text-center text-3xl font-extrabold text-gray-900">
+    <div className="flex min-h-screen items-center justify-center bg-gray-100 p-4">
+      <div className="w-full max-w-md">
+        <div className="text-center mb-8">
+          <Shield className="mx-auto h-12 w-12 text-blue-600" />
+          <h2 className="mt-6 text-3xl font-bold tracking-tight text-gray-900">
             Checklist de EPI
           </h2>
-          <p className="mt-2 text-center text-sm text-gray-600">
-            Sistema de Gestão de Equipamentos de Proteção Individual
+          <p className="mt-2 text-sm text-gray-600">
+            Acesse sua conta para continuar
           </p>
         </div>
 
-        <div className="bg-white py-8 px-6 shadow rounded-lg">
-          {/* Toggle de tipo de login */}
-          <div className="flex rounded-md shadow-sm mb-6">
-            <button
-              type="button"
-              onClick={() => setLoginType('email')}
-              className={cn(
-                'flex-1 py-2 px-4 text-sm font-medium rounded-l-md border transition-colors duration-200',
-                loginType === 'email'
-                  ? 'bg-primary-600 text-white border-primary-600'
-                  : 'bg-white text-gray-700 border-gray-300 hover:bg-gray-50'
-              )}
-            >
-              <Mail className="w-4 h-4 mr-2 inline" />
-              Email
-            </button>
-            <button
-              type="button"
-              onClick={() => setLoginType('employee')}
-              className={cn(
-                'flex-1 py-2 px-4 text-sm font-medium rounded-r-md border-t border-r border-b transition-colors duration-200',
-                loginType === 'employee'
-                  ? 'bg-primary-600 text-white border-primary-600'
-                  : 'bg-white text-gray-700 border-gray-300 hover:bg-gray-50'
-              )}
-            >
-              <User className="w-4 h-4 mr-2 inline" />
-              Matrícula
-            </button>
-          </div>
+        {/* --- Abas de seleção --- */}
+        <div className="mb-4 flex border-b">
+          <button
+            onClick={() => handleTabChange('email')} // Usa a nova função
+            className={`flex-1 py-2 text-sm font-medium ${
+              activeTab === 'email' ? 'border-b-2 border-blue-600 text-blue-600' : 'text-gray-500 hover:text-gray-700'
+            }`}
+          >
+            Acesso por Email
+          </button>
+          <button
+            onClick={() => handleTabChange('employeeId')} // Usa a nova função
+            className={`flex-1 py-2 text-sm font-medium ${
+              activeTab === 'employeeId' ? 'border-b-2 border-blue-600 text-blue-600' : 'text-gray-500 hover:text-gray-700'
+            }`}
+          >
+            Acesso por Matrícula
+          </button>
+        </div>
 
-          <form className="space-y-6" onSubmit={handleSubmit(onSubmit)}>
-            <div>
-              <label htmlFor={loginType === 'email' ? 'email' : 'employeeId'} className="block text-sm font-medium text-gray-700">
-                {loginType === 'email' ? 'Email' : 'Matrícula'}
-              </label>
-              <div className="mt-1 relative">
-                <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                  {loginType === 'email' ? (
+        <div className="bg-white p-8 rounded-lg shadow-md">
+          <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
+            
+            {/* --- Campo de Email ou Matrícula --- */}
+            {activeTab === 'email' ? (
+              <div>
+                <label htmlFor="email" className="sr-only">Email</label>
+                <div className="relative">
+                  <span className="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3">
                     <Mail className="h-5 w-5 text-gray-400" />
-                  ) : (
-                    <User className="h-5 w-5 text-gray-400" />
-                  )}
+                  </span>
+                  <input
+                    id="email"
+                    type="email"
+                    // O 'required' é condicional, o que é ótimo
+                    {...register('email', { required: activeTab === 'email' ? 'Email é obrigatório.' : false })}
+                    placeholder="seu@email.com"
+                    className="w-full rounded-md border-gray-300 py-2 pl-10 pr-3 shadow-sm focus:border-blue-500 focus:ring-blue-500"
+                  />
                 </div>
-                <input
-                  id={loginType === 'email' ? 'email' : 'employeeId'}
-                  name={loginType === 'email' ? 'email' : 'employeeId'}
-                  type={loginType === 'email' ? 'email' : 'text'}
-                  autoComplete={loginType === 'email' ? 'email' : 'off'}
-                  required
-                  className={cn(
-                    'appearance-none block w-full pl-10 pr-3 py-2 border border-gray-300 rounded-md placeholder-gray-400 focus:outline-none focus:ring-primary-500 focus:border-primary-500 sm:text-sm',
-                    errors[loginType === 'email' ? 'email' : 'employeeId'] && 'input-error'
-                  )}
-                  placeholder={loginType === 'email' ? 'seu@email.com' : '12345'}
-                  {...register(loginType === 'email' ? 'email' : 'employeeId', {
-                    required: 'Campo obrigatório',
-                    ...(loginType === 'email' && {
-                      pattern: {
-                        value: /^[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}$/i,
-                        message: 'Email inválido'
-                      }
-                    })
-                  })}
-                />
+                {/* Exibe o erro do react-hook-form */}
+                {errors.email && <p className="mt-1 text-xs text-red-600">{errors.email.message}</p>}
               </div>
-              {errors[loginType === 'email' ? 'email' : 'employeeId'] && (
-                <p className="mt-2 text-sm text-danger-600">
-                  {errors[loginType === 'email' ? 'email' : 'employeeId'].message}
-                </p>
-              )}
-            </div>
-
-            <div>
-              <label htmlFor="password" className="block text-sm font-medium text-gray-700">
-                Senha
-              </label>
-              <div className="mt-1 relative">
-                <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                  <Lock className="h-5 w-5 text-gray-400" />
+            ) : (
+              <div>
+                <label htmlFor="employeeId" className="sr-only">Matrícula</label>
+                <div className="relative">
+                   <span className="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3">
+                    <User className="h-5 w-5 text-gray-400" />
+                  </span>
+                  <input
+                    id="employeeId"
+                    type="text"
+                    // O 'required' é condicional, o que é ótimo
+                    {...register('employeeId', { required: activeTab === 'employeeId' ? 'Matrícula é obrigatória.' : false })}
+                    placeholder="Sua matrícula"
+                    className="w-full rounded-md border-gray-300 py-2 pl-10 pr-3 shadow-sm focus:border-blue-500 focus:ring-blue-500"
+                  />
                 </div>
+                {/* Exibe o erro do react-hook-form */}
+                {errors.employeeId && <p className="mt-1 text-xs text-red-600">{errors.employeeId.message}</p>}
+              </div>
+            )}
+            
+            {/* --- Campo de Senha --- */}
+            <div>
+              <label htmlFor="password" className="sr-only">Senha</label>
+              <div className="relative">
+                <span className="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3">
+                  <Lock className="h-5 w-5 text-gray-400" />
+                </span>
                 <input
                   id="password"
-                  name="password"
-                  type={showPassword ? 'text' : 'password'}
-                  autoComplete="current-password"
-                  required
-                  className={cn(
-                    'appearance-none block w-full pl-10 pr-10 py-2 border border-gray-300 rounded-md placeholder-gray-400 focus:outline-none focus:ring-primary-500 focus:border-primary-500 sm:text-sm',
-                    errors.password && 'input-error'
-                  )}
-                  placeholder="••••••••"
-                  {...register('password', { required: 'Senha é obrigatória' })}
+                  type="password"
+                  {...register('password', { required: 'Senha é obrigatória.' })}
+                  placeholder="********"
+                  className="w-full rounded-md border-gray-300 py-2 pl-10 pr-3 shadow-sm focus:border-blue-500 focus:ring-blue-500"
                 />
-                <div className="absolute inset-y-0 right-0 pr-3 flex items-center">
-                  <button
-                    type="button"
-                    onClick={() => setShowPassword(!showPassword)}
-                    className="text-gray-400 hover:text-gray-500 focus:outline-none focus:text-gray-500"
-                  >
-                    {showPassword ? (
-                      <EyeOff className="h-5 w-5" />
-                    ) : (
-                      <Eye className="h-5 w-5" />
-                    )}
-                  </button>
-                </div>
               </div>
-              {errors.password && (
-                <p className="mt-2 text-sm text-danger-600">
-                  {errors.password.message}
-                </p>
-              )}
+              {/* Exibe o erro do react-hook-form */}
+              {errors.password && <p className="mt-1 text-xs text-red-600">{errors.password.message}</p>}
             </div>
 
-            <div className="flex items-center justify-between">
-              <div className="flex items-center">
-                <input
-                  id="remember-me"
-                  name="remember-me"
-                  type="checkbox"
-                  className="h-4 w-4 text-primary-600 focus:ring-primary-500 border-gray-300 rounded"
-                />
-                <label htmlFor="remember-me" className="ml-2 block text-sm text-gray-900">
-                  Lembrar-me
-                </label>
-              </div>
+            {/* --- Mensagem de Erro (remover se o toast for suficiente) --- */}
+            {/* Se você removeu o estado 'error' acima, pode remover este bloco */}
+            {/* {error && (
+              <p className="text-center text-sm text-red-600 bg-red-100 p-2 rounded-md">
+                {error}
+              </p>
+            )} */}
 
+            <div className="flex items-center justify-between">
               <div className="text-sm">
-                <a
-                  href="#"
-                  className="font-medium text-primary-600 hover:text-primary-500"
-                >
-                  Esqueceu sua senha?
-                </a>
+                 {/* CORRIGIDO O AVISO DO LINK: Usando um botão para evitar problemas de navegação sem router */}
+                <button type="button" className="font-medium text-blue-600 hover:text-blue-500">
+                  Esqueceu a senha?
+                </button>
               </div>
             </div>
 
@@ -181,42 +185,16 @@ const Login = () => {
               <button
                 type="submit"
                 disabled={loading}
-                className="group relative w-full flex justify-center py-2 px-4 border border-transparent text-sm font-medium rounded-md text-white bg-primary-600 hover:bg-primary-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-500 disabled:opacity-50 disabled:cursor-not-allowed transition-colors duration-200"
+                className="flex w-full justify-center rounded-md border border-transparent bg-blue-600 py-2 px-4 text-sm font-medium text-white shadow-sm hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 disabled:bg-blue-300"
               >
-                {loading ? (
-                  <LoadingSpinner size="sm" />
-                ) : (
-                  <>
-                    <span className="absolute left-0 inset-y-0 flex items-center pl-3">
-                      <Lock className="h-5 w-5 text-primary-500 group-hover:text-primary-400" />
-                    </span>
-                    Entrar
-                  </>
-                )}
+                {loading ? <LoadingSpinner size="sm" /> : 'Entrar'}
               </button>
             </div>
           </form>
-
-          <div className="mt-6">
-            <div className="relative">
-              <div className="absolute inset-0 flex items-center">
-                <div className="w-full border-t border-gray-300" />
-              </div>
-              <div className="relative flex justify-center text-sm">
-                <span className="px-2 bg-white text-gray-500">Sistema de Gestão de EPI</span>
-              </div>
-            </div>
-
-            <div className="mt-4 text-xs text-gray-500 space-y-1">
-              <p>• Este sistema garante conformidade com a NR-6</p>
-              <p>• Todos os dados são criptografados e seguros</p>
-              <p>• Funciona offline com sincronização automática</p>
-            </div>
-          </div>
         </div>
       </div>
     </div>
   );
 };
 
-export default Login; 
+export default Login;
